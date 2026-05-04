@@ -1,46 +1,38 @@
-import asyncio
-from telethon import TelegramClient, functions, types
+import os
+from telethon import TelegramClient, events, functions, types
 
-# --- ШАГ 4: ВПИШИ СВОИ ДАННЫЕ СЮДА ---
-API_ID = 0  # Замени на свой api_id (число)
-API_HASH = ""  # Замени на свой api_hash (строка в кавычках)
-# -------------------------------------
+# Вставляй свои данные сюда
+API_ID = 0  # Твой api_id
+API_HASH = ""  # Твой api_hash
+
+client = TelegramClient('my_session', API_ID, API_HASH)
+
+print("Бот запускается...")
+
+@client.on(events.NewMessage(pattern=r'(?i)^подарок (\d+) (@?\w+) ?(.*)?', chats='me'))
+async def handler(event):
+    # Команда работает только если ты пишешь сам себе в "Избранное"
+    gift_id = event.pattern_match.group(1)
+    recipient = event.pattern_match.group(2)
+    message_text = event.pattern_match.group(3) or ""
+
+    await event.reply(f"⏳ Пробую отправить подарок {gift_id} для {recipient}...")
+
+    try:
+        await client(functions.payments.SendStarsGiftRequest(
+            peer=recipient,
+            gift_id=int(gift_id),
+            message=types.TextWithEntities(text=message_text, entities=[])
+        ))
+        await event.reply("✅ Подарок успешно отправлен!")
+    except Exception as e:
+        await event.reply(f"❌ Ошибка: {str(e)}")
 
 async def main():
-    async with TelegramClient('my_session', API_ID, API_HASH) as client:
-        print("Авторизация успешна!")
-        
-        try:
-            # Запрашиваем данные у пользователя
-            gift_id = input("Введи ID подарка: ").strip()
-            message = input("Введи подпись к подарку (или оставь пустым): ").strip()
-            recipient = input("Введи @username или ID получателя: ").strip()
+    await client.start()
+    print("Бот онлайн! Напиши в 'Избранное': подарок [ID] [Юзернейм] [Текст]")
+    await client.run_until_disconnected()
 
-            # Подготовка сообщения (если есть)
-            entities = [] 
-            if message:
-                msg_content = message
-            else:
-                msg_content = ""
-
-            # Отправка подарка
-            # Используем актуальный метод API для отправки подарков за звезды
-            result = await client(functions.payments.SendStarsGiftRequest(
-                peer=recipient,
-                gift_id=int(gift_id),
-                message=types.TextWithEntities(
-                    text=msg_content,
-                    entities=entities
-                )
-            ))
-
-            print("✅ Подарок успешно отправлен!")
-            
-        except Exception as e:
-            print(f"❌ Произошла ошибка: {e}")
-
-if __name__ == "__main__":
-    if API_ID == 0 or API_HASH == "":
-        print("Ошибка: Ты забыл ввести API_ID и API_HASH внутри файла!")
-    else:
-        asyncio.run(main())
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(main())
