@@ -1,38 +1,48 @@
-import os
-from telethon import TelegramClient, events, functions, types
+import asyncio
+from telethon import TelegramClient, functions, types
 
-# Вставляй свои данные сюда
-API_ID = 0  # Твой api_id
-API_HASH = ""  # Твой api_hash
-
-client = TelegramClient('my_session', API_ID, API_HASH)
-
-print("Бот запускается...")
-
-@client.on(events.NewMessage(pattern=r'(?i)^подарок (\d+) (@?\w+) ?(.*)?', chats='me'))
-async def handler(event):
-    # Команда работает только если ты пишешь сам себе в "Избранное"
-    gift_id = event.pattern_match.group(1)
-    recipient = event.pattern_match.group(2)
-    message_text = event.pattern_match.group(3) or ""
-
-    await event.reply(f"⏳ Пробую отправить подарок {gift_id} для {recipient}...")
-
-    try:
-        await client(functions.payments.SendStarsGiftRequest(
-            peer=recipient,
-            gift_id=int(gift_id),
-            message=types.TextWithEntities(text=message_text, entities=[])
-        ))
-        await event.reply("✅ Подарок успешно отправлен!")
-    except Exception as e:
-        await event.reply(f"❌ Ошибка: {str(e)}")
+# --- ШАГ 4: ВСТАВЬ СВОИ ДАННЫЕ СЮДА ---
+API_ID = 0  # Замени на свое число api_id
+API_HASH = ''  # Замени на свою строку api_hash
+# ---------------------------------------
 
 async def main():
+    # Создаем клиента и авторизуемся
+    client = TelegramClient('my_session', API_ID, API_HASH)
     await client.start()
-    print("Бот онлайн! Напиши в 'Избранное': подарок [ID] [Юзернейм] [Текст]")
-    await client.run_until_disconnected()
+    
+    me = await client.get_me()
+    print(f"Авторизован: {me.first_name} (id={me.id})")
+    print("-" * 30)
+
+    try:
+        # Запрашиваем данные у пользователя
+        gift_id_input = input("Введи ID подарка (число): ").strip()
+        message_text = input("Введи подпись к подарку (или оставь пустым): ").strip()
+        recipient_username = input("Введи @username или ID получателя: ").strip()
+
+        # Подготовка данных
+        gift_id = int(gift_id_input)
+        
+        # Получаем объект получателя
+        entity = await client.get_input_entity(recipient_username)
+
+        # Отправка подарка через API Telegram
+        # Мы используем функцию SendGift
+        result = await client(functions.payments.SendStarsGiftRequest(
+            peer=entity,
+            gift_id=gift_id,
+            message=message_text if message_text else None
+        ))
+
+        print("✅ Подарок успешно отправлен!")
+        
+    except ValueError:
+        print("❌ Ошибка: ID подарка должен быть числом.")
+    except Exception as e:
+        print(f"❌ Произошла ошибка: {e}")
+    finally:
+        await client.disconnect()
 
 if __name__ == '__main__':
-    import asyncio
     asyncio.run(main())
